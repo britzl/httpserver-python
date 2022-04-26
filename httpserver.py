@@ -33,6 +33,7 @@ except ImportError:
 SERVER_PORT = 8000
 CONTENT_ENCODING = 'gzip'
 TRANSFER_ENCODING = None
+OVERWRITE_FILES = None
 
 def parse_options():
     # Option parsing logic.
@@ -46,14 +47,19 @@ def parse_options():
     parser.add_option("-p", "--port", dest="port",
                       help="The port to serve the files on",
                       default="8000")
+    parser.add_option("--of", "--overwrite-files", dest="overwrite_files", action="store_true",
+                      help="If PUT/POST can overwrite existing files or not",
+                      default="False")
     (options, args) = parser.parse_args()
 
     global CONTENT_ENCODING
     global TRANSFER_ENCODING
     global SERVER_PORT
+    global OVERWRITE_FILES
     TRANSFER_ENCODING = options.transfer_encoding
     CONTENT_ENCODING = options.content_encoding
     SERVER_PORT = int(options.port)
+    OVERWRITE_FILES = options.overwrite_files
 
     if CONTENT_ENCODING not in ['zlib', 'deflate', 'gzip']:
         sys.stderr.write("Please provide a valid content encoding for the server to utilize.\n")
@@ -122,11 +128,14 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         # Don't overwrite files
         if os.path.exists(filename):
-            self.send_response(409, 'Conflict')
-            self.end_headers()
-            reply_body = '"%s" already exists\n' % filename
-            self.wfile.write(reply_body.encode('utf-8'))
-            return
+            if not OVERWRITE_FILES:
+                self.send_response(409, 'Conflict')
+                self.end_headers()
+                reply_body = '"%s" already exists\n' % filename
+                self.wfile.write(reply_body.encode('utf-8'))
+                return
+            else:
+                print("Overwriting %s" % filename)
 
         file_length = int(self.headers['Content-Length'])
         with open(filename, 'wb+') as output_file:
