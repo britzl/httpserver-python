@@ -149,6 +149,9 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         reply_body = 'Saved "%s"\n' % filename
         self.wfile.write(reply_body.encode('utf-8'))
 
+    def do_POST(self):
+        self.do_PUT()
+
     def do_HEAD(self):
         """Serve a HEAD request."""
         print(self.headers)
