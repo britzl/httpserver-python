@@ -105,6 +105,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Serve a GET request."""
+        print(self.headers)
         content = self.send_head()
         if content:
             if TRANSFER_ENCODING == "chunked":
@@ -116,6 +117,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_PUT(self):
         """Save a file following a HTTP PUT request"""
+        print(self.headers)
         filename = os.path.basename(self.path)
 
         # Don't overwrite files
@@ -140,6 +142,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_HEAD(self):
         """Serve a HEAD request."""
+        print(self.headers)
         content = self.send_head()
 
     def send_head(self):
