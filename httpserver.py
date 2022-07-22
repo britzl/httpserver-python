@@ -17,18 +17,14 @@ __all__ = ["SimpleHTTPRequestHandler"]
 
 import os
 import posixpath
-import BaseHTTPServer
 import urllib
-import cgi
 import sys
 import mimetypes
 import zlib
+import html
+from io import StringIO
 from optparse import OptionParser
-
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
+from http.server import BaseHTTPRequestHandler,HTTPServer
 
 SERVER_PORT = 8000
 CONTENT_ENCODING = 'gzip'
@@ -91,7 +87,7 @@ def gzip_encode(content):
     return data
 
 
-class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     """Simple HTTP request handler with GET and HEAD commands.
 
     This serves files from the current directory and any of its
@@ -105,9 +101,16 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     server_version = "SimpleHTTP/" + __version__
 
+    def write_content(self, content):
+        print("fdsdfds", self, content)
+        if isinstance(content, str):
+            self.wfile.write(content.encode('utf-8'))
+        else:
+            self.wfile.write(content)
+
     def write_chunk(chunk):
         tosend = '%X\r\n%s\r\n'%(len(chunk), chunk)
-        self.wfile.write(tosend)
+        self.write_content(tosend)
 
     def do_GET(self):
         """Serve a GET request."""
@@ -117,9 +120,9 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             if TRANSFER_ENCODING == "chunked":
                 max_chunk_size = 4096
                 for i in range(0, len(content), max_chunk_size):
-                    self.wfile.write(content[i:i+max_chunk_size])
+                    self.write_content(content[i:i+max_chunk_size])
             else:
-                self.wfile.write(content)
+                self.write_content(content)
 
     def do_PUT(self):
         """Save a file following a HTTP PUT request"""
@@ -132,7 +135,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 self.send_response(409, 'Conflict')
                 self.end_headers()
                 reply_body = '"%s" already exists\n' % filename
-                self.wfile.write(reply_body.encode('utf-8'))
+                self.write_content(reply_body)
                 return
             else:
                 print("Overwriting %s" % filename)
@@ -147,7 +150,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.send_response(201, 'Created')
         self.end_headers()
         reply_body = 'Saved "%s"\n' % filename
-        self.wfile.write(reply_body.encode('utf-8'))
+        self.write_content(reply_body)
 
     def do_POST(self):
         self.do_PUT()
@@ -237,7 +240,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             return None
         list.sort(key=lambda a: a.lower())
         f = StringIO()
-        displaypath = cgi.escape(urllib.unquote(self.path))
+        displaypath = html.escape(urllib.parse.unquote(self.path))
         f.write('<!DOCTYPE html>')
         f.write("<html>\n<title>Directory listing for %s</title>\n" % displaypath)
         f.write("<body>\n<h2>Directory listing for %s</h2>\n" % displaypath)
@@ -253,7 +256,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 displayname = name + "@"
                 # Note: a link to a directory displays with @ and links with /
             f.write('<li><a href="%s">%s</a>\n'
-                    % (urllib.quote(linkname), cgi.escape(displayname)))
+                    % (urllib.parse.quote(linkname), html.escape(displayname)))
         f.write("</ul>\n<hr>\n</body>\n</html>\n")
         length = f.tell()
         f.seek(0)
@@ -275,7 +278,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # abandon query parameters
         path = path.split('?',1)[0]
         path = path.split('#',1)[0]
-        path = posixpath.normpath(urllib.unquote(path))
+        path = posixpath.normpath(urllib.parse.unquote(path))
         words = path.split('/')
         words = filter(None, words)
         path = os.getcwd()
@@ -324,7 +327,7 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 def test(HandlerClass = SimpleHTTPRequestHandler,
-         ServerClass = BaseHTTPServer.HTTPServer):
+         ServerClass = HTTPServer):
     """Run the HTTP request handler class.
 
     This runs an HTTP server on port 8000 (or the first command line
@@ -337,10 +340,10 @@ def test(HandlerClass = SimpleHTTPRequestHandler,
     server_address = ('0.0.0.0', SERVER_PORT)
 
     SimpleHTTPRequestHandler.protocol_version = "HTTP/1.0"
-    httpd = BaseHTTPServer.HTTPServer(server_address, SimpleHTTPRequestHandler)
+    httpd = HTTPServer(server_address, SimpleHTTPRequestHandler)
 
     sa = httpd.socket.getsockname()
-    print "Serving HTTP on", sa[0], "port", sa[1], "..."
+    print("Serving HTTP on", sa[0], "port", sa[1], "...")
     httpd.serve_forever()
     BaseHTTPServer.test(HandlerClass, ServerClass)
 
