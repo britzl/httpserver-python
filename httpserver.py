@@ -36,7 +36,7 @@ def parse_options():
     parser = OptionParser()
     parser.add_option("--ce", "--content-encoding", dest="content_encoding",
                       help="Content encoding type for server to utilize",
-                      default='gzip')
+                      default=None)
     parser.add_option("--te", "--transfer-encoding", dest="transfer_encoding",
                       help="Transfer encoding type for server to utilize",
                       default=None)
@@ -57,9 +57,9 @@ def parse_options():
     SERVER_PORT = int(options.port)
     OVERWRITE_FILES = options.overwrite_files
 
-    if CONTENT_ENCODING not in ['zlib', 'deflate', 'gzip']:
+    if CONTENT_ENCODING and CONTENT_ENCODING not in ['zlib', 'deflate', 'gzip']:
         sys.stderr.write("Please provide a valid content encoding for the server to utilize.\n")
-        sys.stderr.write("Possible values are 'zlib', 'gzip', and 'deflate'\n")
+        sys.stderr.write("Possible values are 'zlib', 'gzip' and 'deflate'\n")
         sys.stderr.write("Usage: python " + os.path.basename(__file__) + " --content-encoding=<CONTENT_ENCODING>\n")
         sys.exit()
 
@@ -220,7 +220,8 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         if TRANSFER_ENCODING != "chunked":
             self.send_header("Content-Length", max(raw_content_length, compressed_content_length))
         self.send_header("Content-type", content_type)
-        self.send_header("Content-Encoding", CONTENT_ENCODING)
+        if CONTENT_ENCODING:
+            self.send_header("Content-Encoding", CONTENT_ENCODING)
         self.send_header("Last-Modified", self.date_time_string(fs.st_mtime))
         self.end_headers()
         return content
